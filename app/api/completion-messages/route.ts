@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
     const { data, status } = await workflowClient.run(
       inputs,
       user,
-      /* stream = */ false,
+      stream = true,
       files,
     )
 
