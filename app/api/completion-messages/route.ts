@@ -1,18 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { client, getInfo } from '@/app/api/utils/common'
+import { workflowClient, getInfo } from '@/app/api/utils/common'
 import type { AxiosError } from 'axios'
 
+/**
+ * Edge Function – run‑workflow
+ *
+ * ワークフローアプリ用に /v1/workflows/run を叩く。
+ * 1. POST body から inputs / files を取得
+ * 2. Dify Workflow API へ転送（blocking モード）
+ * 3. ステータスとレスポンスをそのままクライアントに返却
+ */
 export async function POST(request: NextRequest) {
   try {
-    // ① リクエスト body を取得
+    // ① リクエスト body
     const { inputs, files } = await request.json()
     const { user } = getInfo(request)
 
-    // ② 下流 API 呼び出し（まずは blocking モードで）
-    const { data, status } = await client.createCompletionMessage(
+    // ② ワークフロー実行（blocking）
+    const { data, status } = await workflowClient.run(
       inputs,
       user,
-      /* streaming = */ false,
+      /* stream = */ false,
       files,
     )
 
@@ -22,7 +30,7 @@ export async function POST(request: NextRequest) {
       headers: { 'Content-Type': 'application/json' },
     })
   } catch (err) {
-    // ④ AxiosError ならレスポンスをそのまま転送
+    // ④ Dify からの 4xx / 5xx をそのまま透過
     if ((err as AxiosError).isAxiosError && (err as AxiosError).response) {
       const { data, status } = (err as AxiosError).response!
       return new NextResponse(JSON.stringify(data), {
